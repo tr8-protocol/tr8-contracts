@@ -1,14 +1,16 @@
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.19",
+  solidity: "0.8.21",
   settings: {
+    viaIR: true,
     optimizer: {
       enabled: true,
-      runs: 800,
+      runs: 1,
       details: {
-        yul: false,
+        yulDetails: {
+          optimizerSteps: "u",
+        },
       },
     },
-    viaIR : true,
-  }
+  },
 };

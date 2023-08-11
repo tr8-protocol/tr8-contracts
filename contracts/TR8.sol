@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.21;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -20,6 +20,10 @@ interface ITR8Nft {
     function tokenURI(uint256 tokenId) external view returns (string memory);
     function hasRole(bytes32 role, address account) external view returns (bool);
     function burn(uint256 tokenId) external;
+    function hook() external view returns (address);
+    function ownerOf(uint256 tokenId) external view returns (address);
+    function depart(uint256 tokenId) external;
+    function arrive(address to, uint256 tokenId, string calldata uri) external;
 }
 
 interface ITR8Hook {
@@ -30,25 +34,27 @@ interface ITR8Hook {
 /**
  * @title EAS Resolver, NFT Factory, and Transporter for TR8 Protocol
  */
+ // 
 contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2771ContextUpgradeable {
     //using Address for address;
 
-    bool public homeChain;
+    //bool public homeChain;
     // links a drop creation attestation to the cloned NFT contract
-    mapping(bytes32 => address) public nftForDrop;
+    mapping(bytes32 => address) nftForDrop;
     // links a namespace to the cloned NFT contract
-    mapping(bytes32 => address[]) public nftsForNameSpace;
+    mapping(bytes32 => address[]) nftsForNameSpace;
 
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant ISSUER_ROLE = keccak256("ISSUER_ROLE");
+    bytes32 constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 constant ISSUER_ROLE = keccak256("ISSUER_ROLE");
 
     // Factory variables
-    address public nftImplementation;
-    bytes32 public dropSchema;
+    address nftImplementation;
+    bytes32 dropSchema;
 
     error InvalidDrop();
     error ExpiredDrop();
     error InvalidNameSpace();
+    error NotOwner();
 
     //constructor(IEAS eas, address _lzEndpoint)
     //    SchemaResolver(eas) 
@@ -71,9 +77,25 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
         string value;
     }
 
+    struct Drop {
+        string nameSpace;
+        string name;
+        string symbol;
+        string description;
+        string image;
+    }
+
     event TR8DropCreated(
         address indexed owner,
-        address nftContract
+        string nameSpace,
+        address nftAddress,
+        bytes32 indexed uid
+    );
+
+    event TR8Departed(
+        uint256 tokenId,
+        address indexed nftAddress,
+        uint16 indexed chainId
     );
 
     // EAS Schema Resolver:
@@ -88,33 +110,22 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
         }
     }
 
-    function onRevoke(Attestation calldata attestation, uint256 value) internal override returns (bool) {
-        Attestation memory drop = _eas.getAttestation(attestation.refUID);
-        (/*string memory _nameSpace*/, /*string memory _name*/, /*string memory _symbol*/, /*string memory description*/, /*string memory image*/, address hook, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(drop.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
-        // call hook
-        if (hook != address(0)) {
-            ITR8Hook(hook).onBurn(attestation, value, nftForDrop[attestation.refUID]);
-        }
-        if ( ITR8Nft(nftForDrop[attestation.refUID]).exists(uint256(attestation.uid)) ) {
-            ITR8Nft(nftForDrop[attestation.refUID]).burn(uint256(attestation.uid));
-        }
-        return true;
-    }
-
     function _newMint(Attestation calldata attestation, uint256 value) internal returns (bool) {
         if (nftForDrop[attestation.refUID] == address(0)) {
             revert InvalidDrop();
         }
-        Attestation memory drop = _eas.getAttestation(attestation.refUID);
-        if (drop.expirationTime < block.timestamp) {
-            // minting period has ended
-            revert ExpiredDrop();
-        }
-        (/*string memory _nameSpace*/, /*string memory _name*/, /*string memory _symbol*/, /*string memory description*/, /*string memory image*/, address hook, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(drop.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
-        // call hook
-        if (hook != address(0)) {
-            // hook can revert or add MINTER_ROLE to recipient or ISSUER_ROLE to attester ... and do other stuff
-            ITR8Hook(hook).onMint(attestation, value, nftForDrop[attestation.refUID]);
+        {
+            if (_eas.getAttestation(attestation.refUID).expirationTime < block.timestamp) {
+                // minting period has ended
+                revert ExpiredDrop();
+            }
+            //(/*string memory _nameSpace*/, /*string memory _name*/, /*string memory _symbol*/, /*string memory description*/, /*string memory image*/, address hook, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(drop.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
+            // call hook
+            address hook = ITR8Nft(nftForDrop[attestation.refUID]).hook();
+            if (hook != address(0)) {
+                // hook can revert or add MINTER_ROLE to recipient or ISSUER_ROLE to attester ... and do other stuff
+                ITR8Hook(hook).onMint(attestation, value, nftForDrop[attestation.refUID]);
+            }
         }
         if ( ITR8Nft(nftForDrop[attestation.refUID]).hasRole(ISSUER_ROLE, attestation.attester) ||
             ITR8Nft(nftForDrop[attestation.refUID]).hasRole(MINTER_ROLE, attestation.recipient) ) {
@@ -124,21 +135,18 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
         return true;
     }
 
-    // TR8 Factory
-
-    function _newDrop(Attestation calldata attestation) internal returns (bool) {
-        (string memory _nameSpace, /*string memory _name*/, /*string memory _symbol*/, /*string memory description*/, /*string memory image*/, /*address hook*/, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(attestation.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
-        //nftForDrop[attestation.uid] = _cloneNFT(attestation.uid, _name, _symbol, attestation.attester, hook, issuers, claimers, allowTransfers);
-        nftForDrop[attestation.uid] = _cloneNFT(attestation);
-        if (_nameSpaceExists(_nameSpace)) {
-            if (!_ownsNameSpace(attestation.attester, _nameSpace)) {
-                revert InvalidNameSpace();
-            }
-        } else {
-            nftsForNameSpace[keccak256(abi.encodePacked(_nameSpace))].push(nftForDrop[attestation.uid]);
+    function onRevoke(Attestation calldata attestation, uint256 value) internal override returns (bool) {
+        (/*Drop memory metadata*/, address hook, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(_eas.getAttestation(attestation.refUID).data, (Drop, address, address[], address[], string, Attribute[], string[], bool));
+        // call hook
+        if (hook != address(0)) {
+            ITR8Hook(hook).onBurn(attestation, value, nftForDrop[attestation.refUID]);
+        }
+        if ( ITR8Nft(nftForDrop[attestation.refUID]).exists(uint256(attestation.uid)) ) {
+            ITR8Nft(nftForDrop[attestation.refUID]).burn(uint256(attestation.uid));
         }
         return true;
     }
+    
 
     // public functions
     function nameSpaceExists(string calldata _nameSpace) external view returns (bool) {
@@ -146,26 +154,52 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
     }
 
     function tokenURI(uint256 tokenId) external view returns (string memory) {
-        address nftAddress = nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID];
-        return ITR8Nft(nftAddress).tokenURI(tokenId);
+        return ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).tokenURI(tokenId);
+    }
+
+    function ownerOf(uint256 tokenId) external view returns (address) {
+        return ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).ownerOf(tokenId);
     }
 
     function tokenExists(uint256 tokenId) external view returns (bool) {
-        address nftAddress = nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID];
-        return ITR8Nft(nftAddress).exists(tokenId);
+        return ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).exists(tokenId);
     }
 
-    function getAssestationForTokenId(uint256 tokenId) external view returns (Attestation memory) {
-        return _eas.getAttestation(bytes32(tokenId));
+    //function getAssestationForTokenId(uint256 tokenId) external view returns (Attestation memory) {
+    //    return _eas.getAttestation(bytes32(tokenId));
+    //}
+
+    function getNftsForNameSpace(string calldata _nameSpace) external view returns (address[] memory) {
+        return nftsForNameSpace[keccak256(abi.encodePacked(_nameSpace))];
+    }
+
+    // TR8 Factory
+
+    function _newDrop(Attestation calldata attestation) internal returns (bool) {
+        (Drop memory metadata, /*address hook*/, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(attestation.data, (Drop, address, address[], address[], string, Attribute[], string[], bool));
+        nftForDrop[attestation.uid] = _cloneNFT(attestation, metadata.nameSpace);
+        //(string memory _nameSpace, /*string memory _name*/, /*string memory _symbol*/, /*string memory description*/, /*string memory image*/, /*address hook*/, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(attestation.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
+        //(string memory _nameSpace, , , , , , , , , , , ) = abi.decode(attestation.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
+        //string memory _nameSpace = 'hello';
+        //(string memory _nameSpace, , ) = abi.decode(attestation.data, (string, string, string));
+        //nftForDrop[attestation.uid] = _cloneNFT(attestation.uid, _name, _symbol, attestation.attester, hook, issuers, claimers, allowTransfers);
+        if (_nameSpaceExists(metadata.nameSpace)) {
+            if (!_ownsNameSpace(attestation.attester, metadata.nameSpace)) {
+                revert InvalidNameSpace();
+            }
+        } else {
+            nftsForNameSpace[keccak256(abi.encodePacked(metadata.nameSpace))].push(nftForDrop[attestation.uid]);
+        }
+        return true;
     }
 
     // @dev deploys a TR8Nft contract
     // xfunction _cloneNFT(bytes32 salt, string memory _name, string memory _symbol, address owner, address hook, address[] memory issuers, address[] memory claimers, bool allowTransfers) internal returns (address) {
-    function _cloneNFT(Attestation calldata attestation) internal returns (address) {
+    function _cloneNFT(Attestation calldata attestation, string memory nameSpace) internal returns (address) {
         address clone = Clones.cloneDeterministic(nftImplementation, attestation.uid);
         //ITR8Nft(clone).initialize(_name, _symbol, _msgSender(), owner, hook, issuers, claimers, allowTransfers);
         ITR8Nft(clone).initialize(attestation);
-        emit TR8DropCreated(_msgSender(), clone);
+        emit TR8DropCreated(_msgSender(), nameSpace, clone, attestation.uid);
         return clone;
     }
 
@@ -183,9 +217,35 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
     }
 
     // LayerZero Transporter
-    function _nonblockingLzReceive(uint16, bytes memory, uint64, bytes memory) internal override {
-        // TODO
+
+    function send(uint256 tokenId, uint16 _dstChainId) external {
+        if ( _msgSender() != ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).ownerOf(tokenId) ) {
+            revert NotOwner();
+        }
+        bytes memory payload = abi.encode(abi.encodePacked(this.ownerOf(tokenId)), tokenId, this.tokenURI(tokenId));
+        _lzSend(_dstChainId, payload, payable(_msgSender()), address(0), "");
+        ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).depart(tokenId);
+        emit TR8Departed(tokenId, nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID], _dstChainId);
     }
+
+
+    function _nonblockingLzReceive(uint16, bytes memory _payload, uint64, bytes memory) internal override {
+        // decode and load the toAddress
+        (bytes memory toAddressBytes, uint256 tokenId, string memory uri) = abi.decode(_payload, (bytes, uint, string));
+        address toAddress;
+        assembly {
+            toAddress := mload(add(toAddressBytes, 20))
+        }
+        if (nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID] == address(0)) {
+            // TODO: deploy the nft contract on remote chain
+        } else {
+            // mint the token
+            ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).arrive(toAddress, tokenId, uri);
+        }
+    }
+
+
+    // The following functions are overrides required by Solidity.
 
     function _msgSender() internal view override(ERC2771ContextUpgradeable, ContextUpgradeable) returns (address) {
         return super._msgSender();
