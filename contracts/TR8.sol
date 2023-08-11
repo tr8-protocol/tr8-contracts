@@ -8,39 +8,20 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SchemaResolver } from "./utils/SchemaResolver.sol";
 import { IEAS, Attestation } from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
-import "@layerzerolabs/solidity-examples/contracts/contracts-upgradable/lzApp/NonblockingLzAppUpgradeable.sol";
-
-// TODO: finalize interface
-interface ITR8Nft {
-    //function initialize(string calldata _name, string calldata _symbol, address _admin, address _owner, address hook, address[] calldata issuers, address[] calldata claimers, bool allowTransfers) external;
-    function initialize(Attestation calldata attestation) external;
-    function mint(address to, uint256 value) external;
-    function safeMint(address to, uint256 tokenId) external;
-    function exists(uint256 tokenId) external view returns (bool);
-    function tokenURI(uint256 tokenId) external view returns (string memory);
-    function hasRole(bytes32 role, address account) external view returns (bool);
-    function burn(uint256 tokenId) external;
-    function hook() external view returns (address);
-    function ownerOf(uint256 tokenId) external view returns (address);
-    function depart(uint256 tokenId) external;
-    function arrive(address to, uint256 tokenId, string calldata uri) external;
-}
-
-interface ITR8Hook {
-    function onMint(Attestation calldata attestation, uint256 value, address nftAddress) external returns (bool);
-    function onBurn(Attestation calldata attestation, uint256 value, address nftAddress) external returns (bool);
-}
+//import "@layerzerolabs/solidity-examples/contracts/contracts-upgradable/lzApp/NonblockingLzAppUpgradeable.sol";
+import "./interfaces/ITR8Nft.sol";
+import "./interfaces/ITR8Hook.sol";
 
 /**
  * @title EAS Resolver, NFT Factory, and Transporter for TR8 Protocol
  */
  // 
-contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2771ContextUpgradeable {
+contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable {
     //using Address for address;
 
     //bool public homeChain;
     // links a drop creation attestation to the cloned NFT contract
-    mapping(bytes32 => address) nftForDrop;
+    mapping(bytes32 => address) public nftForDrop;
     // links a namespace to the cloned NFT contract
     mapping(bytes32 => address[]) nftsForNameSpace;
 
@@ -49,12 +30,12 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
 
     // Factory variables
     address nftImplementation;
+    address transporter;
     bytes32 dropSchema;
 
     error InvalidDrop();
     error ExpiredDrop();
     error InvalidNameSpace();
-    error NotOwner();
 
     //constructor(IEAS eas, address _lzEndpoint)
     //    SchemaResolver(eas) 
@@ -66,10 +47,11 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
         //_disableInitializers();
     }
 
-    function initialize(IEAS eas, address _lzEndpoint, address _nftImplementation) initializer public {
+    function initialize(IEAS eas, address _nftImplementation, address _transporter) initializer public {
         __SchemaResolver_init(eas);
-        __NonblockingLzAppUpgradeable_init(_lzEndpoint);
+        // __NonblockingLzAppUpgradeable_init(_lzEndpoint);
         nftImplementation = _nftImplementation;
+        transporter = _transporter;
     }
 
     struct Attribute {
@@ -90,12 +72,6 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
         string nameSpace,
         address nftAddress,
         bytes32 indexed uid
-    );
-
-    event TR8Departed(
-        uint256 tokenId,
-        address indexed nftAddress,
-        uint16 indexed chainId
     );
 
     // EAS Schema Resolver:
@@ -165,12 +141,16 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
         return ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).exists(tokenId);
     }
 
-    //function getAssestationForTokenId(uint256 tokenId) external view returns (Attestation memory) {
-    //    return _eas.getAttestation(bytes32(tokenId));
-    //}
+    function getAssestationForTokenId(uint256 tokenId) external view returns (Attestation memory) {
+        return _eas.getAttestation(bytes32(tokenId));
+    }
 
     function getNftsForNameSpace(string calldata _nameSpace) external view returns (address[] memory) {
         return nftsForNameSpace[keccak256(abi.encodePacked(_nameSpace))];
+    }
+
+    function getNftforTokenId(uint256 tokenId) external view returns (address) {
+        return nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID];
     }
 
     // TR8 Factory
@@ -216,43 +196,14 @@ contract TR8 is Initializable, SchemaResolver, NonblockingLzAppUpgradeable, ERC2
         return nftsForNameSpace[keccak256(abi.encodePacked(_nameSpace))].length > 0;
     }
 
-    // LayerZero Transporter
-
-    function send(uint256 tokenId, uint16 _dstChainId) external {
-        if ( _msgSender() != ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).ownerOf(tokenId) ) {
-            revert NotOwner();
-        }
-        bytes memory payload = abi.encode(abi.encodePacked(this.ownerOf(tokenId)), tokenId, this.tokenURI(tokenId));
-        _lzSend(_dstChainId, payload, payable(_msgSender()), address(0), "");
-        ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).depart(tokenId);
-        emit TR8Departed(tokenId, nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID], _dstChainId);
-    }
-
-
-    function _nonblockingLzReceive(uint16, bytes memory _payload, uint64, bytes memory) internal override {
-        // decode and load the toAddress
-        (bytes memory toAddressBytes, uint256 tokenId, string memory uri) = abi.decode(_payload, (bytes, uint, string));
-        address toAddress;
-        assembly {
-            toAddress := mload(add(toAddressBytes, 20))
-        }
-        if (nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID] == address(0)) {
-            // TODO: deploy the nft contract on remote chain
-        } else {
-            // mint the token
-            ITR8Nft(nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID]).arrive(toAddress, tokenId, uri);
-        }
-    }
-
-
     // The following functions are overrides required by Solidity.
 
-    function _msgSender() internal view override(ERC2771ContextUpgradeable, ContextUpgradeable) returns (address) {
-        return super._msgSender();
-    }
+    //function _msgSender() internal view override(ERC2771ContextUpgradeable, ContextUpgradeable) returns (address) {
+    //    return super._msgSender();
+    //}
 
-    function _msgData() internal view override(ERC2771ContextUpgradeable, ContextUpgradeable) returns (bytes calldata) {
-        return super._msgData();
-    }
+    //function _msgData() internal view override(ERC2771ContextUpgradeable, ContextUpgradeable) returns (bytes calldata) {
+    //    return super._msgData();
+    //}
 
 }
