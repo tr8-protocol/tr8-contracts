@@ -30,7 +30,7 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable {
 
     // Factory variables
     address nftImplementation;
-    address transporter;
+    address public transporter;
     bytes32 dropSchema;
 
     error InvalidDrop();

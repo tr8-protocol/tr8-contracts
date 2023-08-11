@@ -1,11 +1,21 @@
 /** @type import('hardhat/config').HardhatUserConfig */
 const dot = require('dotenv').config();
 
+require("@nomiclabs/hardhat-etherscan");
 require("@nomicfoundation/hardhat-chai-matchers");
 const { OPTISCAN_API_KEY, API_URL_OPTIGOERLI, PRIVATE_KEY } = process.env;
 
 module.exports = {
-  solidity: "0.8.21",
+  solidity: {
+    compilers: [
+      {
+        version: '0.8.21',
+        settings: {
+          evmVersion: 'paris'
+        }
+      }
+    ]
+  },
   settings: {
     viaIR: true,
     optimizer: {
@@ -23,7 +33,7 @@ module.exports = {
     hardhat: {
       accounts: [{ privateKey: `0x${PRIVATE_KEY}`, balance: "10000000000000000000000"}],
       forking: {
-        url: API_URL_GOERLI,
+        url: API_URL_OPTIGOERLI,
         blockNumber: 8717392
       },
       loggingEnabled: true,

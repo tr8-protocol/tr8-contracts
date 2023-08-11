@@ -4,12 +4,12 @@ console.log("chain: ", chain);
 const DEPLOYER_ADDR = process.env.DEPLOYER_ADDR;
 
 var addr = {};
-if (chain == "optimism-goerli") {
+if (chain == "optimisticGoerli") {
   addr.lzEndpoint = "0xae92d5aD7583AD66E49A0c67BAd18F6ba52dDDc1";
   addr.chainId = 10132;
   addr.eas = "0x4200000000000000000000000000000000000021";
 }
-if (chain == "base-goerli") {
+if (chain == "baseGoerli") {
   addr.lzEndpoint = "0x6aB5Ae6822647046626e83ee6dB8187151E1d5ab";
   addr.chainId = 10160;
   addr.eas = "0xAcfE09Fd03f7812F022FBf636700AdEA18Fd2A7A"
