@@ -11,6 +11,8 @@ import { IEAS, Attestation } from "@ethereum-attestation-service/eas-contracts/c
 interface ITR8Nft {
     function initialize(string calldata _name, string calldata _symbol, address _admin, address _owner) external;
     function mint(address to, uint256 value) external;
+    function safeMint(address to, uint256 tokenId) external;
+    function exists(uint256 tokenId) external view returns (bool);
 }
 
 /**
