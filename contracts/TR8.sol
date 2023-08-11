@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
 //import "@openzeppelin/contracts/access/Ownable.sol";
+import { ERC2771Context } from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import { SchemaResolver } from "@ethereum-attestation-service/eas-contracts/contracts/resolver/SchemaResolver.sol";
 import { IEAS, Attestation } from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
 
@@ -13,12 +14,14 @@ interface ITR8Nft {
     function mint(address to, uint256 value) external;
     function safeMint(address to, uint256 tokenId) external;
     function exists(uint256 tokenId) external view returns (bool);
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+    function hasRole(bytes32 role, address account) external view returns (bool);
 }
 
 /**
  * @title EAS Resolver, NFT Factory, and Transporter for TR8 Protocol
  */
-contract TR8 is SchemaResolver {
+contract TR8 is SchemaResolver, ERC2771Context {
     //using Address for address;
 
     bool public homeChain;
@@ -38,7 +41,7 @@ contract TR8 is SchemaResolver {
     error ExpiredDrop();
     error InvalidNameSpace();
 
-    constructor(IEAS eas) SchemaResolver(eas) {}
+    constructor(IEAS eas) SchemaResolver(eas) ERC2771Context(0xb539068872230f20456CF38EC52EF2f91AF4AE49) {}
 
 
     event TR8DropCreated(
@@ -53,7 +56,7 @@ contract TR8 is SchemaResolver {
         // TODO: check for drop creation schema first?
         if (attestation.schema == dropSchema) {
             // This is a drop creation attestation
-            (string _name, string _symbol, string _nameSpace) = abi.decode(attestation.data, (string, string, string));
+            (string memory _name, string memory _symbol, string memory _nameSpace) = abi.decode(attestation.data, (string, string, string));
             nftForDrop[attestation.uid] = _cloneNFT(attestation.schema, _name, _symbol, attestation.attester);
             // check nameSpace is owned by attester
             if (_nameSpaceExists(_nameSpace)) {
@@ -68,7 +71,7 @@ contract TR8 is SchemaResolver {
             if (nftForDrop[attestation.refUID] == address(0)) {
                 revert InvalidDrop();
             }
-            Attestation drop = _eas.getAttestation(attestation.refUID);
+            Attestation memory drop = _eas.getAttestation(attestation.refUID);
             if (drop.expirationTime < block.timestamp) {
                 // minting period has ended
                 revert ExpiredDrop();
@@ -82,7 +85,7 @@ contract TR8 is SchemaResolver {
         return true;
     }
 
-    function onRevoke(Attestation calldata attestation, uint256 /*value*/) internal override returns (bool) {
+    function onRevoke(Attestation calldata attestation, uint256 value) internal override returns (bool) {
         // TODO: check schema?
 
         // TODO: call hook
@@ -93,7 +96,7 @@ contract TR8 is SchemaResolver {
     // TR8 Factory
 
     // public functions
-    function nameSpaceExists(string calldata _nameSpace) external returns (bool) {
+    function nameSpaceExists(string calldata _nameSpace) external view returns (bool) {
         return _nameSpaceExists(_nameSpace);
     }
 
@@ -112,14 +115,14 @@ contract TR8 is SchemaResolver {
     }
 
     // @dev deploys a TR8Nft contract
-    function _cloneNFT(bytes32 salt, string calldata _name, string calldata _symbol, address owner) internal returns (address) {
+    function _cloneNFT(bytes32 salt, string memory _name, string memory _symbol, address owner) internal returns (address) {
         address clone = Clones.cloneDeterministic(nftImplementation, salt);
         ITR8Nft(clone).initialize(_name, _symbol, _msgSender(), owner);
         emit TR8DropCreated(_msgSender(), clone);
         return clone;
     }
 
-    function _ownsNameSpace(address attestor, string calldata _nameSpace) internal returns (bool authorized) {
+    function _ownsNameSpace(address attestor, string memory _nameSpace) internal view returns (bool authorized) {
        if (_nameSpaceExists(_nameSpace)) {
             // must have ISSUER_ROLE on the first NFT in the namespace
             authorized = ITR8Nft(
@@ -128,7 +131,7 @@ contract TR8 is SchemaResolver {
         }
     }
 
-    function _nameSpaceExists(string calldata _nameSpace) internal returns (bool) {
+    function _nameSpaceExists(string memory _nameSpace) internal view returns (bool) {
         return nftsForNameSpace[keccak256(abi.encodePacked(_nameSpace))].length > 0;
     }
 
