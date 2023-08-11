@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-//import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SchemaResolver } from "./utils/SchemaResolver.sol";
 import { IEAS, Attestation } from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
@@ -16,7 +16,7 @@ import "./interfaces/ITR8Hook.sol";
  * @title EAS Resolver, NFT Factory, and Transporter for TR8 Protocol
  */
  // 
-contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable {
+contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, OwnableUpgradeable {
     //using Address for address;
 
     //bool public homeChain;
@@ -52,6 +52,7 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable {
         // __NonblockingLzAppUpgradeable_init(_lzEndpoint);
         nftImplementation = _nftImplementation;
         transporter = _transporter;
+        _transferOwnership(_msgSender());
     }
 
     struct Attribute {
@@ -73,6 +74,10 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable {
         address nftAddress,
         bytes32 indexed uid
     );
+
+    function setDropSchema(bytes32 _dropSchema) external onlyOwner {
+        dropSchema = _dropSchema;
+    }
 
     // EAS Schema Resolver:
 
@@ -198,12 +203,12 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable {
 
     // The following functions are overrides required by Solidity.
 
-    //function _msgSender() internal view override(ERC2771ContextUpgradeable, ContextUpgradeable) returns (address) {
-    //    return super._msgSender();
-    //}
+    function _msgSender() internal view override(ERC2771ContextUpgradeable, ContextUpgradeable) returns (address) {
+        return super._msgSender();
+    }
 
-    //function _msgData() internal view override(ERC2771ContextUpgradeable, ContextUpgradeable) returns (bytes calldata) {
-    //    return super._msgData();
-    //}
+    function _msgData() internal view override(ERC2771ContextUpgradeable, ContextUpgradeable) returns (bytes calldata) {
+        return super._msgData();
+    }
 
 }
