@@ -3,6 +3,7 @@
 pragma solidity 0.8.21;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
+import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
@@ -130,6 +131,7 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
     
 
     // public functions
+
     function nameSpaceExists(string calldata _nameSpace) external view returns (bool) {
         return _nameSpaceExists(_nameSpace);
     }
@@ -156,6 +158,41 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
 
     function getNftforTokenId(uint256 tokenId) external view returns (address) {
         return nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID];
+    }
+
+    function _getDropAssestationForTokenId(uint256 tokenId) internal view returns (Attestation memory) {
+        return _eas.getAttestation(_eas.getAttestation(bytes32(tokenId)).refUID);
+    }
+
+    function getDataUri(uint256 tokenId) external view returns (string memory) {
+        (Drop memory metadata, /*address hook*/, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, Attribute[] memory attributes, string[] memory tags, bool allowTransfers) = abi.decode(_getDropAssestationForTokenId(tokenId).data, (Drop, address, address[], address[], string, Attribute[], string[], bool));
+        string memory attributesString;
+        for (uint i = 0; i < attributes.length; i++) {
+            if (i > 0) {
+                attributesString = string.concat(attributesString, ', ');
+            }
+            attributesString = string.concat(attributesString, '{ "trait_type": "', attributes[i].key, '", "value": "', attributes[i].value, '"}');
+        }
+        if (allowTransfers) {
+            attributesString = string.concat(attributesString, ', { "trait_type": "transferable", "value": "true"}');
+        } else {
+            attributesString = string.concat(attributesString, ', { "trait_type": "transferable", "value": "false"}');
+        }
+        string memory tagsString;
+        for (uint i = 0; i < tags.length; i++) {
+            if (i > 0) {
+                tagsString = string.concat(tagsString, ', ');
+            }
+            tagsString = string.concat(tagsString, '"', tags[i], '"');
+        }
+        return string(abi.encodePacked(
+            'data:application/json;base64,',
+            Base64.encode(
+                abi.encodePacked(
+                    '{"name":"', metadata.name, '", "description":"', metadata.description, '", "image":"', metadata.image, '", "tags": [', tagsString, '], "attributes":[', attributesString, ']}'
+                )
+            )
+        ));
     }
 
     // TR8 Factory

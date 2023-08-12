@@ -13,7 +13,7 @@ if (chain == "optimisticGoerli") {
   addr.lzEndpoint = "0xae92d5aD7583AD66E49A0c67BAd18F6ba52dDDc1";
   addr.chainId = 10132;
   addr.eas = "0x4200000000000000000000000000000000000021";
-  addr.tr8 = "0x0B037517AaF06DC0A079A1C1B0769ecF2CC017d5";
+  addr.tr8 = "0x4d64AEEA667334A6B91e462357075544B2B3AFAa";
 }
 if (chain == "baseGoerli") {
   addr.lzEndpoint = "0x6aB5Ae6822647046626e83ee6dB8187151E1d5ab";
@@ -21,8 +21,8 @@ if (chain == "baseGoerli") {
   addr.eas = "0xAcfE09Fd03f7812F022FBf636700AdEA18Fd2A7A"
 }
 
-const dropSchemaUid = "0x204e515bb660d631a5dd7ac5fe02d7f65a1a15db658f05de1a938a3d1f18bbe7";
-const mintSchemaUid = "0x0feed6611cdd8eef031800b05411cc18a86fbf3f1536ac3b1253ecf4526b4c93";
+const dropSchemaUid = "0x5f0bfbe16d83f91273ef2d6b7eb3942080f08404597cf7e52a13e7858703bcde";
+const mintSchemaUid = "0xd710780af89d9afcfd5ae9a6af8086b98fb6bbda2bf339c692083c6869d2e03c";
 const easJSON = require("./abis/EAS.json");
 
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, ethers.provider);
@@ -35,7 +35,7 @@ describe("TR8 New Drop Attestation", function () {
     const name = "My Drop";
     const symbol = "MD";
     const description = "My Drop Description";
-    const image = "https://mydrop.com/image.png";
+    const image = "ipfs://QmeYJPjen9GXU9LSDdi8BR52GpWoDpkLEYZjTGPr2rV1f5";
     const metadata = {
         "nameSpace": nameSpace,
         "name": name,
@@ -52,12 +52,37 @@ describe("TR8 New Drop Attestation", function () {
         "0xc2feE563aCf6C5Bb490944750c9332d56Da46445" // AIrtist HW
     ];
     const secret = "";
-    const attributes = [];
-    const tags = [];
+    const attributes = [
+        {
+            "key": "startDate",
+            "value": "01-Jun-2023"
+        },
+        {
+            "key": "endDate",
+            "value": "30-Jun-2023"
+        },
+        {
+            "key": "virtualEvent",
+            "value": "true"
+        },
+        {
+            "key": "city",
+            "value": "Toronto"
+        },
+        {
+            "key": "country",
+            "value": "Canada"
+        },
+        {
+            "key": "eventURL",
+            "value": "https://superfluid.finance/"
+        }
+    ];
+    const tags = ["event", "hackathon"];
     const allowTransfers = false;
 
     it("should make a new Drop attestation", async function() {
-        const data = ethers.utils.defaultAbiCoder.encode(["tuple(string nameSpace, string name, string symbol, string description, string image)", "address", "address[]", "address[]", "string", "tuple(string,string)[]", "string[]", "bool"], [metadata, hook, claimers, admins, secret, attributes, tags, allowTransfers]);
+        const data = ethers.utils.defaultAbiCoder.encode(["tuple(string nameSpace, string name, string symbol, string description, string image)", "address", "address[]", "address[]", "string", "tuple(string key, string value)[]", "string[]", "bool"], [metadata, hook, claimers, admins, secret, attributes, tags, allowTransfers]);
         const attestationRequestData = {
             "recipient": addr.tr8,
             "expirationTime": 0,

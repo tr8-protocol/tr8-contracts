@@ -141,7 +141,11 @@ contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, Ownab
         override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
         returns (string memory)
     {
-        return super.tokenURI(tokenId);
+        if (bytes(super.tokenURI(tokenId)).length > 0) {
+            return super.tokenURI(tokenId);
+        } else {
+            return tr8.getDataUri(tokenId);
+        }
     }
 
     function supportsInterface(bytes4 interfaceId)
