@@ -13,7 +13,7 @@ if (chain == "optimisticGoerli") {
   addr.lzEndpoint = "0xae92d5aD7583AD66E49A0c67BAd18F6ba52dDDc1";
   addr.chainId = 10132;
   addr.eas = "0x4200000000000000000000000000000000000021";
-  addr.tr8 = "0x4d64AEEA667334A6B91e462357075544B2B3AFAa";
+  addr.tr8 = "0x4F8436A221f248274D488bB6C44cBdbbAC11984c";
 }
 if (chain == "baseGoerli") {
   addr.lzEndpoint = "0x6aB5Ae6822647046626e83ee6dB8187151E1d5ab";
@@ -21,8 +21,8 @@ if (chain == "baseGoerli") {
   addr.eas = "0xAcfE09Fd03f7812F022FBf636700AdEA18Fd2A7A"
 }
 
-const dropSchemaUid = "0x5f0bfbe16d83f91273ef2d6b7eb3942080f08404597cf7e52a13e7858703bcde";
-const mintSchemaUid = "0xd710780af89d9afcfd5ae9a6af8086b98fb6bbda2bf339c692083c6869d2e03c";
+const dropSchemaUid = "0x3a70fdf707fe6578bb9abbecee6093edea3c6036a4f4cbf6ef1e4ba685ca8b65";
+const mintSchemaUid = "0x969e90ca2aee47607bcbea9e0c8de9aaa09a27fbf73b5102af6aa0d475088e56";
 const easJSON = require("./abis/EAS.json");
 
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, ethers.provider);
@@ -34,7 +34,7 @@ describe("TR8 New Drop Attestation", function () {
     const nameSpace = "myOrg";
     const name = "My Drop";
     const symbol = "MD";
-    const description = "My Drop Description";
+    const description = "This drop includes streaming super tokens";
     const image = "ipfs://QmeYJPjen9GXU9LSDdi8BR52GpWoDpkLEYZjTGPr2rV1f5";
     const metadata = {
         "nameSpace": nameSpace,
@@ -43,7 +43,9 @@ describe("TR8 New Drop Attestation", function () {
         "description": description,
         "image": image
     };
-    const hook = "0x0000000000000000000000000000000000000000";
+    //const hook = "0x0000000000000000000000000000000000000000";  // no hook
+    //const hook = "0x6072fB0F43Bea837125a3B37B3CF04e76ddd3f19"; // TR8HookFaucet
+    const hook = "0xFc3d67C7A95c1c051Db54608313Bd62E9Cd38A76"; // TR8HookStreamer
     const claimers = [
         "0x3Bb902ffbd079504052c8137Be7165e12F931af2" // onRamp Joe
     ];
@@ -119,7 +121,10 @@ describe("TR8 New Drop Attestation", function () {
             attestationUid = "0x59a1b2af1e743015fa98833977a88037da80182500114f3b1da3622ea86b2dd8";
         }
         const mint = true;
-        const data = ethers.utils.defaultAbiCoder.encode(["bool"], [mint]);
+        const extras = [
+            {"key": "foo", "value": "bar"}
+        ];
+        const data = ethers.utils.defaultAbiCoder.encode(["bool", "tuple(string key, string value)[]"], [mint, extras]);
         const attestationRequestData = {
             "recipient": "0xc2feE563aCf6C5Bb490944750c9332d56Da46445",
             "expirationTime": 0,
