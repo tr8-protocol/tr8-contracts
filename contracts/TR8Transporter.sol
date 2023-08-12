@@ -35,9 +35,12 @@ contract TR8Transporter is Initializable, NonblockingLzAppUpgradeable, ERC2771Co
         uint16 indexed chainId
     );
 
-    // LayerZero Transporter
+    function evmEstimateSendFee(uint256 tokenId, uint16 _dstChainId) public view returns (uint256 nativeFee, uint256 zroFee) {
+        bytes memory payload = abi.encode(abi.encodePacked(tr8.ownerOf(tokenId)), tokenId, tr8.tokenURI(tokenId));
+        return lzEndpoint.estimateFees(_dstChainId, address(this), payload, false, "");
+    }
 
-    function send(uint256 tokenId, uint16 _dstChainId) external {
+    function send(uint256 tokenId, uint16 _dstChainId) external payable {
         if ( _msgSender() != tr8.ownerOf(tokenId) ) {
             revert NotOwner();
         }
@@ -47,7 +50,6 @@ contract TR8Transporter is Initializable, NonblockingLzAppUpgradeable, ERC2771Co
         ITR8Nft(nftAddress).depart(tokenId);
         emit TR8Departed(tokenId, nftAddress, _dstChainId);
     }
-
 
     function _nonblockingLzReceive(uint16, bytes memory _payload, uint64, bytes memory) internal override {
         // decode and load the toAddress
