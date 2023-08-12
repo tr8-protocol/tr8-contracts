@@ -69,6 +69,7 @@ contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, Ownab
         allowTransfers = _allowTransfers;
         tr8 = ITR8(msg.sender);
         _grantRole(TRANSPORTER_ROLE, tr8.transporter());
+        _transferOwnership(attestation.attester);
     }
 
     modifier onlyTR8 {
