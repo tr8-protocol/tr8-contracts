@@ -9,7 +9,7 @@ import { ITR8Hook } from "../ITR8Hook.sol";
  * @title A TR8Hook that requires recipients to have a balance of Ether.
  */
 
-contract TR8HookFaucet is ITR8Hook {
+contract TR8HookNeedEth is ITR8Hook {
 
     constructor() {}
 
