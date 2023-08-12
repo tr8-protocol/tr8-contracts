@@ -9,7 +9,6 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SchemaResolver } from "./utils/SchemaResolver.sol";
 import { IEAS, Attestation } from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
-//import "@layerzerolabs/solidity-examples/contracts/contracts-upgradable/lzApp/NonblockingLzAppUpgradeable.sol";
 import "./interfaces/ITR8Nft.sol";
 import "./hooks/ITR8Hook.sol";
 
@@ -23,6 +22,8 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
     //bool public homeChain;
     // links a drop creation attestation to the cloned NFT contract
     mapping(bytes32 => address) public nftForDrop;
+    // links a cloned NFT contract to the drop creation attestation
+    mapping(address => bytes32) public dropForNft;
     // links a namespace to the cloned NFT contract
     mapping(bytes32 => address[]) nftsForNameSpace;
 
@@ -40,19 +41,13 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
     error NotAuthorized();
     error InvalidNameSpace();
 
-    //constructor(IEAS eas, address _lzEndpoint)
-    //    SchemaResolver(eas) 
-    //    ERC2771Context(0xb539068872230f20456CF38EC52EF2f91AF4AE49) 
-    //    NonblockingLzApp(_lzEndpoint) 
-    //{}
-
     constructor() ERC2771ContextUpgradeable(0xb539068872230f20456CF38EC52EF2f91AF4AE49) {
         //_disableInitializers();
     }
 
     function initialize(IEAS eas, address _nftImplementation, address _transporter) initializer public {
         __SchemaResolver_init(eas);
-        // __NonblockingLzAppUpgradeable_init(_lzEndpoint);
+        __Ownable_init();
         nftImplementation = _nftImplementation;
         transporter = _transporter;
         _transferOwnership(_msgSender());
@@ -207,26 +202,19 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
     function _newDrop(Attestation calldata attestation) internal returns (bool) {
         (Drop memory metadata, /*address hook*/, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(attestation.data, (Drop, address, address[], address[], string, Attribute[], string[], bool));
         nftForDrop[attestation.uid] = _cloneNFT(attestation, metadata.nameSpace);
-        //(string memory _nameSpace, /*string memory _name*/, /*string memory _symbol*/, /*string memory description*/, /*string memory image*/, /*address hook*/, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(attestation.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
-        //(string memory _nameSpace, , , , , , , , , , , ) = abi.decode(attestation.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
-        //string memory _nameSpace = 'hello';
-        //(string memory _nameSpace, , ) = abi.decode(attestation.data, (string, string, string));
-        //nftForDrop[attestation.uid] = _cloneNFT(attestation.uid, _name, _symbol, attestation.attester, hook, issuers, claimers, allowTransfers);
+        dropForNft[nftForDrop[attestation.uid]] = attestation.uid;
         if (_nameSpaceExists(metadata.nameSpace)) {
             if (!_ownsNameSpace(attestation.attester, metadata.nameSpace)) {
                 revert InvalidNameSpace();
             }
-        } else {
-            nftsForNameSpace[keccak256(abi.encodePacked(metadata.nameSpace))].push(nftForDrop[attestation.uid]);
         }
+        nftsForNameSpace[keccak256(abi.encodePacked(metadata.nameSpace))].push(nftForDrop[attestation.uid]);
         return true;
     }
 
     // @dev deploys a TR8Nft contract
-    // xfunction _cloneNFT(bytes32 salt, string memory _name, string memory _symbol, address owner, address hook, address[] memory issuers, address[] memory claimers, bool allowTransfers) internal returns (address) {
     function _cloneNFT(Attestation calldata attestation, string memory nameSpace) internal returns (address) {
         address clone = Clones.cloneDeterministic(nftImplementation, attestation.uid);
-        //ITR8Nft(clone).initialize(_name, _symbol, _msgSender(), owner, hook, issuers, claimers, allowTransfers);
         ITR8Nft(clone).initialize(attestation);
         emit TR8DropCreated(_msgSender(), nameSpace, clone, attestation.uid);
         return clone;

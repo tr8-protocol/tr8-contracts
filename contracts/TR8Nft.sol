@@ -55,7 +55,6 @@ contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, Ownab
 
         _grantRole(DEFAULT_ADMIN_ROLE, _hook);
         _grantRole(DEFAULT_ADMIN_ROLE, attestation.attester);
-        _grantRole(ISSUER_ROLE, _hook);
         _grantRole(ISSUER_ROLE, attestation.attester);
         _grantRole(PAUSER_ROLE, _hook);
         _grantRole(PAUSER_ROLE, attestation.attester);
