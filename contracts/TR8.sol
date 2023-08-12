@@ -11,7 +11,7 @@ import { SchemaResolver } from "./utils/SchemaResolver.sol";
 import { IEAS, Attestation } from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
 //import "@layerzerolabs/solidity-examples/contracts/contracts-upgradable/lzApp/NonblockingLzAppUpgradeable.sol";
 import "./interfaces/ITR8Nft.sol";
-import "./interfaces/ITR8Hook.sol";
+import "./hooks/ITR8Hook.sol";
 
 /**
  * @title EAS Resolver, NFT Factory, and Transporter for TR8 Protocol
@@ -36,6 +36,8 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
 
     error InvalidDrop();
     error ExpiredDrop();
+    error AlreadyMinted();
+    error NotAuthorized();
     error InvalidNameSpace();
 
     //constructor(IEAS eas, address _lzEndpoint)
@@ -101,7 +103,10 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
             // minting period has ended
             revert ExpiredDrop();
         }
-        //(/*string memory _nameSpace*/, /*string memory _name*/, /*string memory _symbol*/, /*string memory description*/, /*string memory image*/, address hook, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(drop.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
+        if (ITR8Nft(nftForDrop[attestation.refUID]).balanceOf(attestation.recipient) > 0) {
+            // recipient already has an NFT
+            revert AlreadyMinted();
+        }
         // call hook
         address hook = ITR8Nft(nftForDrop[attestation.refUID]).hook();
         if (hook != address(0)) {
@@ -111,8 +116,10 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
         if ( ITR8Nft(nftForDrop[attestation.refUID]).hasRole(ISSUER_ROLE, attestation.attester) ||
             ITR8Nft(nftForDrop[attestation.refUID]).hasRole(MINTER_ROLE, attestation.recipient) ) {
             // recipient gets NFT
-            // TODO: deal with uri
             ITR8Nft(nftForDrop[attestation.refUID]).safeMint(attestation.recipient, uint256(attestation.uid), "");
+        } else {
+            // recipient does not get NFT
+            revert NotAuthorized();
         }
         return true;
     }

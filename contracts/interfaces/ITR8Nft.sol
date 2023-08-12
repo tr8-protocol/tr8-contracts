@@ -15,6 +15,8 @@ interface ITR8Nft {
     function burn(uint256 tokenId) external;
     function hook() external view returns (address);
     function ownerOf(uint256 tokenId) external view returns (address);
+    function balanceOf(address owner) external view returns (uint256);
     function depart(uint256 tokenId) external;
     function arrive(address to, uint256 tokenId, string calldata uri) external;
+    function grantRole(bytes32 role, address account) external;
 }
