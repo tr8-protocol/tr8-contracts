@@ -5,7 +5,7 @@ pragma solidity 0.8.21;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 //import "@openzeppelin/contracts/access/Ownable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
-//import { SchemaResolver } from "./utils/SchemaResolver.sol";
+import { IEAS, Attestation } from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
 import "@layerzerolabs/solidity-examples/contracts/contracts-upgradable/lzApp/NonblockingLzAppUpgradeable.sol";
 import "./interfaces/ITR8Nft.sol";
 import "./interfaces/ITR8.sol";
@@ -36,7 +36,8 @@ contract TR8Transporter is Initializable, NonblockingLzAppUpgradeable, ERC2771Co
     );
 
     function evmEstimateSendFee(uint256 tokenId, uint16 _dstChainId) public view returns (uint256 nativeFee, uint256 zroFee) {
-        bytes memory payload = abi.encode(abi.encodePacked(tr8.ownerOf(tokenId)), tokenId, tr8.tokenURI(tokenId));
+        Attestation memory drop = tr8.getDropAssestationForTokenId(tokenId);
+        bytes memory payload = abi.encode(abi.encodePacked(tr8.ownerOf(tokenId)), tokenId, tr8.tokenURI(tokenId), drop);
         return lzEndpoint.estimateFees(_dstChainId, address(this), payload, false, "");
     }
 
@@ -44,7 +45,8 @@ contract TR8Transporter is Initializable, NonblockingLzAppUpgradeable, ERC2771Co
         if ( _msgSender() != tr8.ownerOf(tokenId) ) {
             revert NotOwner();
         }
-        bytes memory payload = abi.encode(abi.encodePacked(tr8.ownerOf(tokenId)), tokenId, tr8.tokenURI(tokenId));
+        Attestation memory drop = tr8.getDropAssestationForTokenId(tokenId);
+        bytes memory payload = abi.encode(abi.encodePacked(tr8.ownerOf(tokenId)), tokenId, tr8.tokenURI(tokenId), drop);
         _lzSend(_dstChainId, payload, payable(_msgSender()), address(0), "");
         address nftAddress = tr8.getNftForTokenId(tokenId);
         ITR8Nft(nftAddress).depart(tokenId);
@@ -53,18 +55,20 @@ contract TR8Transporter is Initializable, NonblockingLzAppUpgradeable, ERC2771Co
 
     function _nonblockingLzReceive(uint16, bytes memory _payload, uint64, bytes memory) internal override {
         // decode and load the toAddress
-        (bytes memory toAddressBytes, uint256 tokenId, string memory uri) = abi.decode(_payload, (bytes, uint, string));
+        (bytes memory toAddressBytes, uint256 tokenId, string memory uri, Attestation memory drop) = abi.decode(_payload, (bytes, uint, string, Attestation));
         address toAddress;
         assembly {
             toAddress := mload(add(toAddressBytes, 20))
         }
         address nftAddress = tr8.getNftForTokenId(tokenId);
         if (nftAddress == address(0)) {
-            // TODO: deploy the nft contract on remote chain
-        } else {
-            // mint the token
-            ITR8Nft(nftAddress).arrive(toAddress, tokenId, uri);
+            nftAddress = tr8.cloneNFT(drop);
+        } 
+        // mint the token
+        if (tr8.homeChain()) {
+            uri = '';
         }
+        ITR8Nft(nftAddress).arrive(toAddress, tokenId, uri);
     }
 
     // The following functions are overrides required by Solidity.

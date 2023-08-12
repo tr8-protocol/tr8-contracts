@@ -19,7 +19,7 @@ import "./hooks/ITR8Hook.sol";
 contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, OwnableUpgradeable {
     //using Address for address;
 
-    //bool public homeChain;
+    bool public homeChain;
     // links a drop creation attestation to the cloned NFT contract
     mapping(bytes32 => address) public nftForDrop;
     // links a cloned NFT contract to the drop creation attestation
@@ -75,6 +75,9 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
 
     function setDropSchema(bytes32 _dropSchema) external onlyOwner {
         dropSchema = _dropSchema;
+    }
+    function setHomeChain(bool _homeChain) external onlyOwner {
+        homeChain = _homeChain;
     }
 
     // EAS Schema Resolver:
@@ -162,12 +165,12 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
         return nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID];
     }
 
-    function _getDropAssestationForTokenId(uint256 tokenId) internal view returns (Attestation memory) {
+    function getDropAssestationForTokenId(uint256 tokenId) external view returns (Attestation memory) {
         return _eas.getAttestation(_eas.getAttestation(bytes32(tokenId)).refUID);
     }
 
     function getDataUri(uint256 tokenId) external view returns (string memory) {
-        (Drop memory metadata, /*address hook*/, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, Attribute[] memory attributes, string[] memory tags, bool allowTransfers) = abi.decode(_getDropAssestationForTokenId(tokenId).data, (Drop, address, address[], address[], string, Attribute[], string[], bool));
+        (Drop memory metadata, /*address hook*/, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, Attribute[] memory attributes, string[] memory tags, bool allowTransfers) = abi.decode(this.getDropAssestationForTokenId(tokenId).data, (Drop, address, address[], address[], string, Attribute[], string[], bool));
         string memory attributesString;
         for (uint i = 0; i < attributes.length; i++) {
             if (i > 0) {
@@ -210,6 +213,14 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
         }
         nftsForNameSpace[keccak256(abi.encodePacked(metadata.nameSpace))].push(nftForDrop[attestation.uid]);
         return true;
+    }
+
+    function cloneNFT(Attestation calldata attestation) external returns (address) {
+        if (_msgSender() != transporter) {
+            revert NotAuthorized();
+        }
+        (Drop memory metadata, /*address hook*/, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(attestation.data, (Drop, address, address[], address[], string, Attribute[], string[], bool));
+        return _cloneNFT(attestation, metadata.nameSpace);
     }
 
     // @dev deploys a TR8Nft contract

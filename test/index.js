@@ -11,15 +11,14 @@ const chain = hre.network.name;
 const easJSON = require("./abis/EAS.json");
 const tr8JSON = require("../artifacts/contracts/TR8.sol/TR8.json");
 const transporterJSON = require("../artifacts/contracts/TR8Transporter.sol/TR8Transporter.json");
-const { base } = require("mocha/lib/reporters");
 
 var addr = {};
 if (chain == "optimisticGoerli") {
   addr.lzEndpoint = "0xae92d5aD7583AD66E49A0c67BAd18F6ba52dDDc1";
   addr.chainId = 10132;
   addr.eas = "0x4200000000000000000000000000000000000021";
-  addr.tr8 = "0x4F8436A221f248274D488bB6C44cBdbbAC11984c";
-  addr.transporter = "0x5e1D5043e87Dd16F0422d3C6c9f5FFA18394aFE0";
+  addr.tr8 = "0x55D41bA54c2463D923330F89A5EAaf75762DA886";
+  addr.transporter = "0xFCa4A1E9B9182918E67ECe2844ebce9839e5cC7A";
 }
 if (chain == "baseGoerli") {
   addr.lzEndpoint = "0x6aB5Ae6822647046626e83ee6dB8187151E1d5ab";
@@ -32,8 +31,8 @@ var dstChainIds = {
     "baseGoerli": 10160
 };
 
-const dropSchemaUid = "0x3a70fdf707fe6578bb9abbecee6093edea3c6036a4f4cbf6ef1e4ba685ca8b65";
-const mintSchemaUid = "0x969e90ca2aee47607bcbea9e0c8de9aaa09a27fbf73b5102af6aa0d475088e56";
+const dropSchemaUid = "0x2cbff9132898d4ae66246834f39c80d7fad18d9a7d36d6d600d05250c643930f";
+const mintSchemaUid = "0xe90ca97c136ad2a62d8666016527cfba90aad781dfa8e9b45b4aaf3f1f7bba71";
 
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, ethers.provider);
 const eas = new ethers.Contract(addr.eas, easJSON.abi, signer);
@@ -104,7 +103,7 @@ describe("TR8 New Drop Attestation", function () {
     // allowTransfers is a boolean, true if the TR8 can be transferred, false if not
     const allowTransfers = false;
 
-    it.skip("should make a new Drop attestation", async function() {
+    it("should make a new Drop attestation", async function() {
         const data = ethers.utils.defaultAbiCoder.encode(["tuple(string nameSpace, string name, string symbol, string description, string image)", "address", "address[]", "address[]", "string", "tuple(string key, string value)[]", "string[]", "bool"], [metadata, hook, claimers, admins, secret, attributes, tags, allowTransfers]);
         const attestationRequestData = {
             "recipient": addr.tr8,
@@ -179,6 +178,13 @@ describe("TR8 New Drop Attestation", function () {
         }
         const tokenId = new BigNumber(mintAttestationUid);
         console.log(tokenId);
+        let trustedRemote = ethers.utils.solidityPack(
+            ['address','address'],
+            [addr.transporter, addr.transporter]
+        );
+        console.log(trustedRemote);
+        const setRemotes = await tr8.setTrustedRemote(dstChainIds.baseGoerli, trustedRemote);
+        await setRemotes.wait();
         const fees = await transporter.evmEstimateSendFee(tokenId, dstChainIds.baseGoerli);
         console.log(fees);
         const txn = await transporter.send(tokenId, dstChainIds.baseGoerli, {"value": ''+fees[0]});
