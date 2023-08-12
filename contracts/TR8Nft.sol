@@ -86,7 +86,7 @@ contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, Ownab
         _unpause();
     }
 
-    function safeMint(address to, uint256 tokenId, string memory uri)
+    function safeMint(address to, uint256 tokenId, string calldata uri)
         public
         onlyTR8
     {

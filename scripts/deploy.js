@@ -3,6 +3,8 @@ console.log("chain: ", chain);
 
 const DEPLOYER_ADDR = process.env.DEPLOYER_ADDR;
 
+const dropSchemaString = `(string,string,string,string,string) metadata, address hook , address[] claimers, address[] admins, string secret, (string,string)[] attributes, string[] tags, bool allowTransfers`;
+
 var addr = {};
 if (chain == "optimisticGoerli") {
   addr.lzEndpoint = "0xae92d5aD7583AD66E49A0c67BAd18F6ba52dDDc1";

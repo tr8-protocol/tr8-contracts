@@ -95,23 +95,23 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
         if (nftForDrop[attestation.refUID] == address(0)) {
             revert InvalidDrop();
         }
-        {
-            if (_eas.getAttestation(attestation.refUID).expirationTime < block.timestamp) {
-                // minting period has ended
-                revert ExpiredDrop();
-            }
-            //(/*string memory _nameSpace*/, /*string memory _name*/, /*string memory _symbol*/, /*string memory description*/, /*string memory image*/, address hook, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(drop.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
-            // call hook
-            address hook = ITR8Nft(nftForDrop[attestation.refUID]).hook();
-            if (hook != address(0)) {
-                // hook can revert or add MINTER_ROLE to recipient or ISSUER_ROLE to attester ... and do other stuff
-                ITR8Hook(hook).onMint(attestation, value, nftForDrop[attestation.refUID]);
-            }
+        if (_eas.getAttestation(attestation.refUID).expirationTime > 0 &&
+            _eas.getAttestation(attestation.refUID).expirationTime < block.timestamp) {
+            // minting period has ended
+            revert ExpiredDrop();
+        }
+        //(/*string memory _nameSpace*/, /*string memory _name*/, /*string memory _symbol*/, /*string memory description*/, /*string memory image*/, address hook, /*address[] memory claimers*/, /*address[] memory issuers*/, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, /*bool allowTransfers*/) = abi.decode(drop.data, (string, string, string, string, string, address, address[], address[], string, Attribute[], string[], bool));
+        // call hook
+        address hook = ITR8Nft(nftForDrop[attestation.refUID]).hook();
+        if (hook != address(0)) {
+            // hook can revert or add MINTER_ROLE to recipient or ISSUER_ROLE to attester ... and do other stuff
+            ITR8Hook(hook).onMint(attestation, value, nftForDrop[attestation.refUID]);
         }
         if ( ITR8Nft(nftForDrop[attestation.refUID]).hasRole(ISSUER_ROLE, attestation.attester) ||
             ITR8Nft(nftForDrop[attestation.refUID]).hasRole(MINTER_ROLE, attestation.recipient) ) {
             // recipient gets NFT
-            ITR8Nft(nftForDrop[attestation.refUID]).safeMint(attestation.recipient, uint256(attestation.uid));
+            // TODO: deal with uri
+            ITR8Nft(nftForDrop[attestation.refUID]).safeMint(attestation.recipient, uint256(attestation.uid), "");
         }
         return true;
     }
