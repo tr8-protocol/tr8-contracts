@@ -4,11 +4,22 @@ TR8 protocol is a permissionless public good protocol, on the Superchain, for tr
 
 ## Composabilty
 
-TR8 is composable through the structured data in the source attestations, and well as via option hook contracts that issuers can deploy to tightly integrate TR8s into their own protocols.
+TR8 is composable through the structured data in the source attestations, and well as via optional hook contracts that issuers can deploy to tightly integrate TR8s into their own protocols and control who can claim their TR8s and what _extras_ happen when they do.
+
+## OP Stack Superchain
+
+The Superchain of OP Stack chains is the home for TR8 Protocol, currently deployed to Optimism, Base, and Zora (testnets).
 
 ## Cross-chain
 
 All TR8 NFTs are cross-chain by nature and can currently been moved between Optimism, Base, and Zora, with more to follow. Cross-chain transportation provided by LayerZero general message passing (GMP).
+
+### How it was built
+
+At its core, TR8 protocol use EAS attestations as the base layer. There are two kinds of attestations that TR8 issuers and claimers make:
+
+1. *"New Drop" Attestions.* This is an attestation to create new drop, whether it be a badge for event attendance, an educational certificate, or something else. The attestation includes the structured data for the drop as well as lists of who can issue and/or claim the TR8s. When a new drop attestation is made, a dedicated NFT contract/collection is deployed for the drop. The collection is _owned_ by the issuer enabling them to customize the collection's appearance on OpenSea and other marketplaces and directories. Drop can have an _expiry date_, a deadline for minting the TR8s in the drop. Drops can be configured as soulbound (non-transferable), or trade-able.
+2. *Mint/Claim Attestations.* These attestion can be made either by an _issuer_ (admin) or a claimer. In both cases the `recipient` of the attestation is the one who will receive the TR8, if eligible. Configured _issuers_ for a drop can _issue_ (mint) a TR8 to any address. Configured _claimers_ can claim a TR8 for themselves (they are both the `attester` and the `recipient` in these claim attestations). When these attestation are made, _hooks_ are called if configured, enabling limitless composability and providing flexibility on gating who can and cannot claim TR8s in the drop (more on hooks below). Eligible receipients will receive a TR8 NFT for the Drop, adding to their onchain identity.
 
 
 ### TR8 Protocol Contracts
