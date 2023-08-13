@@ -1,10 +1,16 @@
 # TR8 Protocol
 
-TR8 protocol is a permissionless public good protocol, on the Superchain, for traits (TR8s) of many types, including event attendance, credentials, in-game assets, badges, and more. TR8 protocol use Ethereum Attestion Searvice (EAS) as a base layer, providing customization, onchain, structured data for issuers of all types of credentials. NFT metadata is store onchain in attestations.
+TR8 protocol is a permissionless public good protocol, on the Superchain, for traits (TR8s) of many types, including event attendance, credentials, in-game assets, badges, and more. TR8 protocol uses Ethereum Attestion Searvice (EAS) as a base layer, providing customization, onchain, structured data for issuers of all types of credentials. NFT metadata is store onchain in attestations.
+
+## Other Repos
+
+Some code for TR8 protocol libes in other repos under the [tr8-protocol](https://github.com/tr8-protocol/) organisation on Github:
+- [Frontend](https://github.com/tr8-protocol/frontend)
+- [API]()
 
 ## Permissionless
 
-TR8 Protocol is permissionless. Anyone can create a drop on any topic with any content. TR8 drops do *NOT* have to be vetted nor approved by a committee or company or organization or DAO. A side-effect of this permissionless nature is that content-filtering is the responsibility of front-ends, each of which can apply their own standards for curating content. TR8 Protocol envision many different front-ends, some general in nature and others focused on specific applications like events, educational credential, in-game assets, etc. 
+TR8 Protocol is permissionless. Anyone can create a drop/collection on _any_ topic with _any_ content. TR8 drops do *NOT* have to be vetted nor approved by a committee or company or organization or DAO. A side-effect of this permissionless nature is that content-filtering becomes the responsibility of front-ends, each of which can apply their own standards for curating content. TR8 Protocol envisions many different front-ends, some general in nature and others focused on specific applications like events, educational credentials, in-game assets, etc. 
 
 ## Composabilty
 
@@ -12,18 +18,22 @@ TR8 is composable through the structured data in the source attestations, and we
 
 ## OP Stack Superchain
 
-The Superchain of OP Stack chains is the home for TR8 Protocol, currently deployed to Optimism, Base, and Zora (testnets).
+The Superchain of OP Stack chains is the home for TR8 Protocol, currently deployed to `Optimism`, `Base`, and `Zora` (testnets).
 
 ## Cross-chain
 
-All TR8 NFTs are cross-chain by nature and can currently been moved between Optimism, Base, and Zora, with more to follow. Cross-chain transportation provided by LayerZero general message passing (GMP).
+All TR8 NFTs are cross-chain by nature and can currently be moved between Optimism, Base, and Zora, with more to follow. Cross-chain transportation provided by `LayerZero` general message passing (GMP).
 
 ### How it was built
 
 At its core, TR8 protocol use EAS attestations as the base layer. There are two kinds of attestations that TR8 issuers and claimers make:
 
-1. *"New Drop" Attestions.* This is an attestation to create new drop, whether it be a badge for event attendance, an educational certificate, or something else. The attestation includes the structured data for the drop as well as lists of who can issue and/or claim the TR8s. When a new drop attestation is made, a dedicated NFT contract/collection is deployed for the drop. The collection is _owned_ by the issuer enabling them to customize the collection's appearance on OpenSea and other marketplaces and directories. Drop can have an _expiry date_, a deadline for minting the TR8s in the drop. Drops can be configured as soulbound (non-transferable), or trade-able.
-2. *Mint/Claim Attestations.* These attestion can be made either by an _issuer_ (admin) or a claimer. In both cases the `recipient` of the attestation is the one who will receive the TR8, if eligible. Configured _issuers_ for a drop can _issue_ (mint) a TR8 to any address. Configured _claimers_ can claim a TR8 for themselves (they are both the `attester` and the `recipient` in these claim attestations). When these attestation are made, _hooks_ are called if configured, enabling limitless composability and providing flexibility on gating who can and cannot claim TR8s in the drop (more on hooks below). Eligible receipients will receive a TR8 NFT for the Drop, adding to their onchain identity.
+1. *"New Drop" Attestions.* This is an attestation to create a new drop or collection, whether it be a badge for event attendance, an educational certificate, or something else. The attestation includes the structured data for the drop as well as lists of who can issue and/or claim the TR8s. When a new drop attestation is made, a dedicated NFT contract/collection is deployed for the drop. The collection is _owned_ by the issuer enabling them to customize the collection's appearance on OpenSea and other marketplaces and directories. A drop can have an _expiry date_, a deadline for minting the TR8s in the drop. Drops can be configured as soulbound (non-transferable), or trade-able.
+2. *Mint/Claim Attestations.* These attestion can be made either by an _issuer_ (admin) or a claimer. In both cases the `recipient` of the attestation is the one who will receive the TR8, if eligible. Configured _issuers_ for a drop can _issue_ (mint) a TR8 to _any_ address. Configured _claimers_ can claim a TR8 for themselves (they are both the `attester` and the `recipient` in these claim attestations). When these attestation are made, _hooks_ are called if configured, enabling limitless composability and providing flexibility on gating who can and cannot claim TR8s in the drop (more on hooks below). Eligible recipients will receive a TR8 NFT for the Drop, adding to their onchain identity.
+
+### Namespaces
+
+TR8 drops feature optional reserved _namespaces_, enabling issuing organizations to group their drops under a single namespace that is reserved for them.
 
 
 ### TR8 Protocol Contracts
@@ -32,9 +42,9 @@ At its core, TR8 protocol use EAS attestations as the base layer. There are two 
 
 While TR8 users interact primarily through making attestations to the EAS contract, there are several contracts deployed as part of TR8 protocol.
 
-- `TR8.sol` - The TR8 contract provides several functions.  It acts an a EAS `SchemaResolver`, hooks that gets called when each attestation is made or revoked. When a minting/claiming attestation is made, the `onAttest()` hook triggers the minting of the TR8 to eigible attestation recipients. When a "new TR8 drop" attestation is made, the hook triggers the deployment of a dedicated NFT contract for the drop. In this way, the contract also acts as a Factory contract which minimally clones NFT contracts. The attestation includes NFT metadata and access permissions for issuers and claimers, stored onchain within the attestation and/or newly deployed contract. Finally, the `TR8` contract acts a registry for drops and keeps track of reserved _nameSpaces_ for issuers.
+- `TR8.sol` - The TR8 contract provides several functions.  It acts an a EAS `SchemaResolver`, hooks that get called when each attestation is made or revoked. When a minting/claiming attestation is made, the `onAttest()` hook triggers the minting of the TR8 to eigible attestation recipients. When a "new TR8 drop" attestation is made, the hook triggers the deployment of a dedicated NFT contract for the drop. In this way, the contract also acts as a Factory contract which minimally clones NFT contracts. The attestation includes NFT metadata and access permissions for issuers and claimers, stored onchain within the attestation and/or newly deployed contract. Finally, the `TR8` contract acts a registry for drops and keeps track of reserved _nameSpaces_ for issuers.
 - `TR8Nft.sol` - This is the implementation contract for TR8 NFTs. Each drop gets it own contract/collection which gets [cloned](https://docs.openzeppelin.com/contracts/4.x/api/proxy#Clones) from this contract. These NFTs are cross-chain NFTs that implement the `ERC721Transportable` interface to faciliate arrivals and departures.
-- `TR8Transporter.sol` - Powered by LayerZero, this contract is a transport hub for many TR8 NFT contracts. One transporter is deployed per chain and all movement of NFTs move through them. If a transporter detects that a drop NFT contract has not yet been deployed on the destination chain, it calls out to the `TR8` contract on that chain to deploy, at the same address as the home chain.
+- `TR8Transporter.sol` - Powered by LayerZero, this contract is a transport hub for _many_ TR8 NFT contracts. One transporter is deployed per chain and all movement of NFTs move through them. If a transporter detects that a drop NFT contract has not yet been deployed on the destination chain, it calls out to the `TR8` contract on that chain to deploy, at the same address as the home chain.
 ![TR8 Transporters](https://violet-manual-egret-987.mypinata.cloud/ipfs/QmZt8FYKxYuTgpZsBv8NuduYWdoPY4yWRr9F882vGhYbzw)
 
 #### Optional TR8 Hook contracts
