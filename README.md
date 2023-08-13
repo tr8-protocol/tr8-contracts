@@ -2,6 +2,10 @@
 
 TR8 protocol is a permissionless public good protocol, on the Superchain, for traits (TR8s) of many types, including event attendance, credentials, in-game assets, badges, and more. TR8 protocol use Ethereum Attestion Searvice (EAS) as a base layer, providing customization, onchain, structured data for issuers of all types of credentials. NFT metadata is store onchain in attestations.
 
+## Permissionless
+
+TR8 Protocol is permissionless. Anyone can create a drop on any topic with any content. TR8 drops do *NOT* have to be vetted nor approved by a committee or company or organization or DAO. A side-effect of this permissionless nature is that content-filtering is the responsibility of front-ends, each of which can apply their own standards for curating content. TR8 Protocol envision many different front-ends, some general in nature and others focused on specific applications like events, educational credential, in-game assets, etc. 
+
 ## Composabilty
 
 TR8 is composable through the structured data in the source attestations, and well as via optional hook contracts that issuers can deploy to tightly integrate TR8s into their own protocols and control who can claim their TR8s and what _extras_ happen when they do.
