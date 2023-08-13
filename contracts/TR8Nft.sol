@@ -2,7 +2,6 @@
 pragma solidity ^0.8.21;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -13,7 +12,7 @@ import { IEAS, Attestation } from "@ethereum-attestation-service/eas-contracts/c
 import "./interfaces/IERC721Transportable.sol";
 import "./interfaces/ITR8.sol";
 
-contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, OwnableUpgradeable, ERC721EnumerableUpgradeable, ERC721URIStorageUpgradeable, PausableUpgradeable, AccessControlUpgradeable, ERC721BurnableUpgradeable {
+contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, OwnableUpgradeable, ERC721URIStorageUpgradeable, PausableUpgradeable, AccessControlUpgradeable, ERC721BurnableUpgradeable {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant ISSUER_ROLE = keccak256("ISSUER_ROLE");
@@ -47,7 +46,6 @@ contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, Ownab
     function initialize(Attestation calldata attestation) initializer public {
         (Drop memory metadata, address _hook, address[] memory claimers, address[] memory issuers, /*string memory secret*/, /*Attribute[] memory attributes*/, /*string[] memory tags*/, bool _allowTransfers) = abi.decode(attestation.data, (Drop, address, address[], address[], string, Attribute[], string[], bool));
         __ERC721_init(metadata.name, metadata.symbol);
-        __ERC721Enumerable_init();
         __ERC721URIStorage_init();
         __Pausable_init();
         __AccessControl_init();
@@ -68,6 +66,7 @@ contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, Ownab
         allowTransfers = _allowTransfers;
         tr8 = ITR8(msg.sender);
         _grantRole(TRANSPORTER_ROLE, tr8.transporter());
+        _grantRole(TRANSPORTER_ROLE, attestation.attester); // TODO: change this?
         _transferOwnership(attestation.attester);
     }
 
@@ -116,12 +115,10 @@ contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, Ownab
     function _beforeTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize)
         internal
         whenNotPaused
-        override(ERC721Upgradeable, ERC721EnumerableUpgradeable)
+        override(ERC721Upgradeable)
     {
-        if (!allowTransfers) {
-            if (from != address(0)) {
-                revert NotTransferrable();
-            }
+        if (!allowTransfers && from != address(0) && to != address(0)) {
+            revert NotTransferrable();
         }
         super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
@@ -151,7 +148,7 @@ contract TR8Nft is Initializable, IERC721Transportable, ERC721Upgradeable, Ownab
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721Upgradeable, ERC721EnumerableUpgradeable, ERC721URIStorageUpgradeable, AccessControlUpgradeable)
+        override(ERC721Upgradeable, ERC721URIStorageUpgradeable, AccessControlUpgradeable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);

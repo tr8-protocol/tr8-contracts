@@ -4,9 +4,15 @@ const { ethers } = require("hardhat");
 const networkName = hre.network.name;
 
 require('dotenv').config();
-//var BN = web3.utils.BN;
 
 const chain = hre.network.name;
+
+console.log(ethers.utils.id('_nonblockingLzReceive(uint16,bytes,uint64,bytes)').substring(0, 10));
+// nonblockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload)
+console.log(ethers.utils.id('nonblockingLzReceive(uint16,bytes,uint64,bytes)').substring(0, 10));
+// _blockingLzReceive(uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload)
+console.log(ethers.utils.id('_blockingLzReceive(uint16,bytes,uint64,bytes)').substring(0, 10));
+//return;
 
 const easJSON = require("./abis/EAS.json");
 const tr8JSON = require("../artifacts/contracts/TR8.sol/TR8.json");
@@ -17,13 +23,15 @@ if (chain == "optimisticGoerli") {
   addr.lzEndpoint = "0xae92d5aD7583AD66E49A0c67BAd18F6ba52dDDc1";
   addr.chainId = 10132;
   addr.eas = "0x4200000000000000000000000000000000000021";
-  addr.tr8 = "0x55D41bA54c2463D923330F89A5EAaf75762DA886";
-  addr.transporter = "0xFCa4A1E9B9182918E67ECe2844ebce9839e5cC7A";
+  addr.tr8 = "0xC3b0c31C16D341eb09aa3698964369D2b6744108";
+  addr.transporter = "0x54C9935e58141cc5b1B4417bb478C7D25228Bfc0";
 }
 if (chain == "baseGoerli") {
   addr.lzEndpoint = "0x6aB5Ae6822647046626e83ee6dB8187151E1d5ab";
   addr.chainId = 10160;
-  addr.eas = "0xAcfE09Fd03f7812F022FBf636700AdEA18Fd2A7A"
+  addr.eas = "0xAcfE09Fd03f7812F022FBf636700AdEA18Fd2A7A";
+  addr.tr8 = "0xC3b0c31C16D341eb09aa3698964369D2b6744108";
+  addr.transporter = "0x54C9935e58141cc5b1B4417bb478C7D25228Bfc0";
 }
 
 var dstChainIds = {
@@ -31,8 +39,8 @@ var dstChainIds = {
     "baseGoerli": 10160
 };
 
-const dropSchemaUid = "0x2cbff9132898d4ae66246834f39c80d7fad18d9a7d36d6d600d05250c643930f";
-const mintSchemaUid = "0xe90ca97c136ad2a62d8666016527cfba90aad781dfa8e9b45b4aaf3f1f7bba71";
+const dropSchemaUid = "0xbc6da0b0e818da22c205bca49549ecd10cd57015b43230cb5a6d8082f4a0cbd7";
+const mintSchemaUid = "0xb83960e8eb89cebe08ffd35e9a405ead3ae353608f6c673da898f9ed8cfc739a";
 
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, ethers.provider);
 const eas = new ethers.Contract(addr.eas, easJSON.abi, signer);
@@ -58,8 +66,8 @@ describe("TR8 New Drop Attestation", function () {
 
     // hook can be the zero address for no hook, or a contract address:
     //const hook = "0x0000000000000000000000000000000000000000";  // no hook
-    //const hook = "0x6072fB0F43Bea837125a3B37B3CF04e76ddd3f19"; // TR8HookFaucet
-    const hook = "0xFc3d67C7A95c1c051Db54608313Bd62E9Cd38A76"; // TR8HookStreamer
+    const hook = "0x6072fB0F43Bea837125a3B37B3CF04e76ddd3f19"; // TR8HookFaucet
+    //const hook = "0xFc3d67C7A95c1c051Db54608313Bd62E9Cd38A76"; // TR8HookStreamer
     // claimers is an array of addresses that can claim a TR8 from the contract
     const claimers = [
         "0x3Bb902ffbd079504052c8137Be7165e12F931af2" // onRamp Joe
@@ -68,7 +76,7 @@ describe("TR8 New Drop Attestation", function () {
     // the attester (drop creator) does not need to be added here, as it will become an issuer
     const admins = [
         "0x3ADB96227538B3251B87F5ec6fba245607B1BD7A", // MultiDeployer
-        "0xc2feE563aCf6C5Bb490944750c9332d56Da46445" // AIrtist HW
+        "0x963ab8c987a34Cf764c8de97a0435900Ba699edD" // TR8 4
     ];
     const secret = "";  // unused, leave blank
     // attributes is an array of key/value pairs, can be an empty array, but both key and value must be strings
@@ -132,7 +140,7 @@ describe("TR8 New Drop Attestation", function () {
             this.skip();
         }
         const attestation = await eas.getAttestation(attestationUid);
-        console.log(attestation);
+        //console.log(attestation);
         expect(attestation.uid).to.equal(attestationUid);
     });
 
@@ -142,6 +150,7 @@ describe("TR8 New Drop Attestation", function () {
         if (!attestationUid) {
             attestationUid = "0x80939d4f740539974cad692f9403085bbdf831a8feac5d9b5dd78f5e26200103";
         }
+        var recipient = await signer.getAddress();
         // the mint and extras vars are not really used, but must be included. 
         // extras can be an empty array, but both key and value must be strings
         // extras can used for any purpose of the issuer, but not currently used by the TR8 contracts
@@ -151,7 +160,7 @@ describe("TR8 New Drop Attestation", function () {
         ];
         const data = ethers.utils.defaultAbiCoder.encode(["bool", "tuple(string key, string value)[]"], [mint, extras]);
         const attestationRequestData = {
-            "recipient": "0xc2feE563aCf6C5Bb490944750c9332d56Da46445", // gets the TR8
+            "recipient": recipient, // gets the TR8
             "expirationTime": 0,
             "revocable": true,
             "refUID": attestationUid, // IMPORTANT: the attestation UID of the drop
@@ -176,18 +185,19 @@ describe("TR8 New Drop Attestation", function () {
         if (!mintAttestationUid) {
             this.skip();
         }
-        const tokenId = new BigNumber(mintAttestationUid);
-        console.log(tokenId);
-        let trustedRemote = ethers.utils.solidityPack(
-            ['address','address'],
-            [addr.transporter, addr.transporter]
-        );
-        console.log(trustedRemote);
-        const setRemotes = await tr8.setTrustedRemote(dstChainIds.baseGoerli, trustedRemote);
-        await setRemotes.wait();
-        const fees = await transporter.evmEstimateSendFee(tokenId, dstChainIds.baseGoerli);
+        const tokenId = ethers.BigNumber.from(mintAttestationUid);
+        console.log("tokenId: ", tokenId.toString());
+        // assumes remote deployment of NFT contract, so 3M gas
+        const adapterParams = ethers.utils.solidityPack(
+            ['uint16','uint256'],
+            [1, 3000000]
+        )
+        console.log("adapterParams: ", adapterParams);
+        const fees = await transporter.evmEstimateSendFee(tokenId, dstChainIds.baseGoerli, adapterParams);
         console.log(fees);
-        const txn = await transporter.send(tokenId, dstChainIds.baseGoerli, {"value": ''+fees[0]});
+        const options = {"value": fees[0].toString() + '0'};
+        console.log(options);
+        const txn = await transporter.send(tokenId.toString(), dstChainIds.baseGoerli, adapterParams, options);
         const { events } = await txn.wait();
         expect(1).to.equal(1); // TODO: change this
     });

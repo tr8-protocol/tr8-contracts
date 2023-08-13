@@ -161,7 +161,7 @@ contract TR8 is Initializable, SchemaResolver, ERC2771ContextUpgradeable, Ownabl
         return nftsForNameSpace[keccak256(abi.encodePacked(_nameSpace))];
     }
 
-    function getNftforTokenId(uint256 tokenId) external view returns (address) {
+    function getNftForTokenId(uint256 tokenId) external view returns (address) {
         return nftForDrop[_eas.getAttestation(bytes32(tokenId)).refUID];
     }
 
