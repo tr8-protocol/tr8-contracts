@@ -1,5 +1,14 @@
-# tr8-contracts
-contracts for TR8 protocol
+# TR8 Protocol
+
+TR8 protocol is a permissionless public good protocol, on the Superchain, for traits (TR8s) of many types, including event attendance, credentials, in-game assets, badges, and more. TR8 protocol use Ethereum Attestion Searvice (EAS) as a base layer, providing customization, onchain, structured data for issuers of all types of credentials. NFT metadata is store onchain in attestations.
+
+## Composabilty
+
+TR8 is composable through the structured data in the source attestations, and well as via option hook contracts that issuers can deploy to tightly integrate TR8s into their own protocols.
+
+## Cross-chain
+
+All TR8 NFTs are cross-chain by nature and can currently been moved between Optimism, Base, and Zora, with more to follow. Cross-chain transportation provided by LayerZero general message passing (GMP).
 
 
 ### TR8 Protocol Contracts
