@@ -4,9 +4,9 @@ TR8 protocol is a permissionless public good protocol, on the Superchain, for tr
 
 ## Other Repos
 
-Some code for TR8 protocol libes in other repos under the [tr8-protocol](https://github.com/tr8-protocol/) organisation on Github:
-- [Frontend](https://github.com/tr8-protocol/frontend)
-- [API]()
+Some code for TR8 protocol lives in other repos under the [tr8-protocol](https://github.com/tr8-protocol/) organisation on Github:
+- [Frontend](https://github.com/tr8-protocol/frontend) - an example front end
+- [API](https://github.com/tr8-protocol/tr8-api) - an example API
 
 ## Permissionless
 
@@ -28,7 +28,7 @@ All TR8 NFTs are cross-chain by nature and can currently be moved between Optimi
 
 At its core, TR8 protocol use EAS attestations as the base layer. There are two kinds of attestations that TR8 issuers and claimers make:
 
-1. *"New Drop" Attestions.* This is an attestation to create a new drop or collection, whether it be a badge for event attendance, an educational certificate, or something else. The attestation includes the structured data for the drop as well as lists of who can issue and/or claim the TR8s. When a new drop attestation is made, a dedicated NFT contract/collection is deployed for the drop. The collection is _owned_ by the issuer enabling them to customize the collection's appearance on OpenSea and other marketplaces and directories. A drop can have an _expiry date_, a deadline for minting the TR8s in the drop. Drops can be configured as soulbound (non-transferable), or trade-able.
+1. *"New Drop" Attestations.* This is an attestation to create a new drop or collection, whether it be a badge for event attendance, an educational certificate, or something else. The attestation includes the structured data for the drop as well as lists of who can issue and/or claim the TR8s. When a new drop attestation is made, a dedicated NFT contract/collection is deployed for the drop. The collection is _owned_ by the issuer enabling them to customize the collection's appearance on OpenSea and other marketplaces and directories. A drop can have an _expiry date_, a deadline for minting the TR8s in the drop. Drops can be configured as soulbound (non-transferable), or trade-able.
 2. *Mint/Claim Attestations.* These attestion can be made either by an _issuer_ (admin) or a claimer. In both cases the `recipient` of the attestation is the one who will receive the TR8, if eligible. Configured _issuers_ for a drop can _issue_ (mint) a TR8 to _any_ address. Configured _claimers_ can claim a TR8 for themselves (they are both the `attester` and the `recipient` in these claim attestations). When these attestation are made, _hooks_ are called if configured, enabling limitless composability and providing flexibility on gating who can and cannot claim TR8s in the drop (more on hooks below). Eligible recipients will receive a TR8 NFT for the Drop, adding to their onchain identity.
 
 ### Namespaces
@@ -75,7 +75,7 @@ Example hook contracts were deployed only to the "home chain", Optimism:
 
 TR8 Protocol was built during the ETHGlobal Superhack hackathon. The follow sponsor technology was used:
 
-- *Ethereum Attestation Service (EAS)*: EAS is the foundation upon which TR8 has been built. It is the base layer for TR8 Protocol. [#](https://github.com/tr8-protocol/tr8-contracts/blob/main/contracts/TR8.sol#L85) [#](https://github.com/tr8-protocol/tr8-contracts/blob/main/contracts/TR8.sol#L172)
+- *Ethereum Attestation Service (EAS)*: EAS is the foundation upon which TR8 has been built. It is the base layer for TR8 Protocol. [#](https://github.com/tr8-protocol/tr8-contracts/blob/main/contracts/TR8.sol#L85) [#](https://github.com/tr8-protocol/tr8-contracts/blob/main/contracts/TR8.sol#L172) [#](https://github.com/tr8-protocol/tr8-api/blob/main/functions/tr8/index.js#L31)
 - *Optimism*: The home chain for TR8 protocol is Optimism, where all attestations and TR8 drops happen. TR8 Protocol is intended to be a permissionless public good. See OP deplyed addresses above. [#](https://github.com/tr8-protocol/tr8-contracts/blob/main/test/index.js#L22)
 - *Base*: TR8 Protocol NFTs can be moved between OP Stack chain and has been deployed to Base. See Base deployed addresses above [#](https://github.com/tr8-protocol/tr8-contracts/blob/main/test/index.js#L29) 
 - *Zora*: TR8 Protocol NFTs can be moved between OP Stack chain and has been deployed to Zora. See Zora deployed addresses above [#](https://github.com/tr8-protocol/tr8-contracts/blob/main/hardhat.config.js#L569) 
