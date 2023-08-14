@@ -2,10 +2,17 @@
 
 TR8 protocol is a permissionless public good protocol, on the Superchain, for traits (TR8s) of many types, including event attendance, credentials, in-game assets, badges, and more. TR8 protocol uses Ethereum Attestion Searvice (EAS) as a base layer, providing customization, onchain, structured data for issuers of all types of credentials. NFT metadata is store onchain in attestations.
 
+## Live Demo: Try it Now
+
+A basic example front end for creating event-based TR8s can be found at https://tr8.me
+
+
+
 ## Other Repos
 
 Some code for TR8 protocol lives in other repos under the [tr8-protocol](https://github.com/tr8-protocol/) organisation on Github:
-- [Frontend](https://github.com/tr8-protocol/frontend) - an example front end
+- [Frontend](https://github.com/tr8-protocol/frontend) - an example front end (work in progress)
+- [Events Example Frontend](https://github.com/tr8-protocol/tr8-api/tree/main/dapp) - an example front-end focused on event attedance TR8s (working demo)
 - [API](https://github.com/tr8-protocol/tr8-api) - an example API
 
 ## Permissionless
